@@ -42,41 +42,163 @@ struct Monster
     int column = 0;
 };
 
-Player Player1;
-void printMap(string);
-void findPlayer(Player&);
+void printMap(string, Player&);
+void movePlayer(char, string, Player&);
+void updateMap(string);
+
 
 
 
 int main()
 {
-    
+    Player Player1;
     string levelsList[3] = {"level1.txt", "level2.txt", "level3.txt"};
-    printMap(levelsList[0]);
+    printMap(levelsList[0], Player1);
+    char nextMove = ' ';
     
     // while the monsters haven't reached the player, ask user for next player move. Move the player and monsters. 
     // if monster is adjacent to player than game over and player loses. else if player has reached '@' then move to next level. 
     // else if player has reached '*' then player wins and game over. Print level at end of each loop. 
+    
+    // while the player is not dead and user hasn't quit
+    cout << "Enter next move: ";
+    cin >> nextMove;
+    // Pass move to movePlayer() function to update players position and map;
+    movePlayer(nextMove, levelsList[0], Player1);
+    
+    printMap(levelsList[0], Player1);
 
-    findPlayer(Player1);
 
     return 0;
 }
-void findPlayer(Player& player1)
+
+// Function movePlayer updates the map to hold the new position of the player
+void movePlayer(char nextMove, string level, Player& Player1)
 {
+    nextMove = tolower(nextMove);
+    int map, item, temp;
+    char buffer[COLUMNS];
+    
+    map = open(level.c_str(), O_RDONLY); 
+    if(map == -1)
+    {
+        perror("\nmap file open errror: ");
+        exit(1);
+    }
+
+    temp = open("temp.txt", O_WRONLY);
+    if(temp == -1)
+    {
+        perror("\ntemp file open errror: ");
+        exit(1);
+    }
+    int row = 0;
+    int size = COLUMNS;
+    
+    while((item=read(map, buffer, size))!=0)
+    {
+        if(row == 0)
+            size++;
+        
+        row++;
+        //NORTH AND SOUTH NOT WORKING
+        switch (nextMove)
+        {
+        case 'n': 
+            // if the Player is in the next row, write a 'P' in the current row 
+            if(row == (Player1.row - 1))
+            {
+                buffer[Player1.column] == 'P';
+                cout << "SET NORTH P";
+            }
+            // if the current row has the 'P', replace it with a ' '
+            if (row == Player1.row)
+            {
+                buffer[Player1.column] == '.';
+                cout << "ERASED NORTH P";
+            }
+            break;
+        case 's': 
+            // if the current row has the 'P', replace it with a ' ' 
+            if(row == Player1.row)
+            {
+                buffer[Player1.column] == '.';
+                cout << "ERASED SOUTH P";
+            }
+            // if the current row is after the row with the Player, write a 'P' in the current row
+            if (row == (Player1.row + 1))
+            {
+                buffer[Player1.column] == 'P';
+                cout << "SET SOUTH P";
+            }
+            break;
+        case 'e':
+            // Move the player 1 space to the right
+            if(row == Player1.row)
+            {
+                buffer[Player1.column] = '.';
+                buffer[Player1.column + 1] = 'P';
+                cout << "SET EAST P";
+            }
+            break;
+        case 'w':
+            // Move the player 1 space to the left
+            if(row == Player1.row)
+            {
+                buffer[Player1.column] = '.';
+                buffer[Player1.column - 1] = 'P';
+                cout << "SET WEST P";
+            }
+            break;
+        }
+        item = write(temp, buffer, item);
+    }
+    close (map);
+    close(temp);
+
+    updateMap(level);
     
 }
 
+// Function updateMap uses file system calls to compy the map from the temp file to the level file
+void updateMap(string level)
+{
+    int map, item, temp;
+    char buffer[COLUMNS];
+    
+    map = open(level.c_str(), O_WRONLY); 
+    if(map == -1)
+    {
+        perror("\nmap file open errror: ");
+        exit(1);
+    }
+
+    temp = open("temp.txt", O_RDONLY);
+    if(temp == -1)
+    {
+        perror("\ntemp file open errror: ");
+        exit(1);
+    }
+
+    while((item=read(temp, buffer, COLUMNS))!=0)
+    {
+        // Update the map by copying the map from temp.txt to the level file
+        item = write(map, buffer, item);
+    }
+    close(temp);
+    close(map);
+}
+
 // Function printMap opens the level file, and prints it to the screen.
-void printMap(string level)
+void printMap(string level,  Player& Player1)
 {
     int map, item;
     char buffer[COLUMNS];
     
-    map = open(level.c_str(), O_RDONLY, S_IRUSR); 
+    map = open(level.c_str(), O_RDONLY); 
     if(map == -1)
     {
-        perror("\nomap file open errror: ");
+        perror("\nmap file open errror: ");
         exit(1);
     }
     int row = 0;
@@ -86,9 +208,10 @@ void printMap(string level)
     {
         if(row == 0)
             size++;
-        // Update Player location and map format
-       // cout << "Items read: " << item;
+        
         row++;
+
+        // Update Player location and map format
         for(int i = 0; i < COLUMNS; i++)
         {
             if(buffer[i] == 'P')
@@ -104,7 +227,6 @@ void printMap(string level)
         
         // Print the map to the screen using the write() system call
         item = write(1, buffer, item);
-        //cout << "Items written: " << item;
     }
 
     cout << endl << "Number of rows: " << row << endl << "Player position: " << Player1.row <<  ", " << Player1.column << endl;
