@@ -1,5 +1,7 @@
-CS 330 Assignment 5
+CS 330 Assignment 5 - IN PROGRESS
+
 Name: Tori Sambrook
+
 Student Number: 200386684
 
 Topic: System calls, multiprocesses, and threading. 
