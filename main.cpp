@@ -46,6 +46,7 @@ struct Monster
 void printMap(string, Player&);
 void movePlayer(char, string, Player&);
 void updateMap(string);
+bool checkPosition(char, string, Player);
 bool isValidPosition(char);
 bool isValidInput(char);
 
@@ -68,7 +69,7 @@ int main()
     while(nextMove != 'q')
     {
         // Check if it is valid input
-        if(isValidInput(nextMove));
+        if(isValidInput(nextMove) && checkPosition(nextMove, levelsList[0], Player1))
         {
             // Pass move to movePlayer() function to update players position and map;
             movePlayer(nextMove, levelsList[0], Player1);
@@ -76,13 +77,11 @@ int main()
             updateMap(levelsList[0]);
         }
         
-    printMap(levelsList[0], Player1);
-    cout << "Enter next move: ";
-    cin >> nextMove;
-    nextMove = tolower(nextMove);
+        printMap(levelsList[0], Player1);
+        cout << "Enter next move: ";
+        cin >> nextMove;
+        nextMove = tolower(nextMove);
     }
-
-
     return 0;
 }
 
@@ -99,7 +98,6 @@ bool isValidInput(char input)
 
 bool isValidPosition(char item)
 {
-    // Check if it is a valid position
     if(item == '.' || item == '~')
     {
         return true;
@@ -117,7 +115,84 @@ bool isValidPosition(char item)
     else
     {
         return false;
-    }   
+    }  
+}
+
+bool checkPosition(char nextMove, string level, Player Player1)
+{
+    int map, item;
+    char buffer[COLUMNS];
+    int row = 0;
+    int size = COLUMNS;
+    
+    map = open(level.c_str(), O_RDONLY); 
+    if(map == -1)
+    {
+        perror("\nmap file open errror: ");
+        exit(1);
+    }
+    
+    while((item=read(map, buffer, size))!=0)
+    {
+        if(row == 0)
+            size++;
+        
+        row++;
+
+        switch(nextMove)
+        {
+            case 'n':
+                if(row == (Player1.row - 1))
+                {
+                    if(isValidPosition(buffer[Player1.column]))
+                        return true;
+                    else
+                    {
+                        close(map);
+                        return false;
+                    }       
+                }
+                break;
+            case 's':
+                if(row == (Player1.row + 1))
+                {
+                    if(isValidPosition(buffer[Player1.column]))
+                        return true;
+                    else
+                    {
+                        close(map);
+                        return false;
+                    }       
+                }
+                break;
+            case 'e':
+                if(row == Player1.row)
+                {
+                    if(isValidPosition(buffer[Player1.column + 1]))
+                        return true;
+                    else
+                    {
+                        close(map);
+                        return false;
+                    }       
+                }
+                break;
+            case 'w':
+                if(row == Player1.row)
+                {
+                    if(isValidPosition(buffer[Player1.column - 1]))
+                        return true;
+                    else
+                    {
+                        close(map);
+                        return false;
+                    }       
+                }
+                break;
+        }
+    } 
+    close(map);
+    return false;
 }
 
 // Function movePlayer updates the map to hold the new position of the player
@@ -125,6 +200,8 @@ void movePlayer(char nextMove, string level, Player& Player1)
 {
     int map, item, temp;
     char buffer[COLUMNS];
+    int row = 0;
+    int size = COLUMNS;
     
     map = open(level.c_str(), O_RDONLY); 
     if(map == -1)
@@ -139,9 +216,6 @@ void movePlayer(char nextMove, string level, Player& Player1)
         perror("\ntemp file open errror: ");
         exit(1);
     }
-    int row = 0;
-    int size = COLUMNS;
-    
     
     while((item=read(map, buffer, size))!=0)
     {
@@ -155,17 +229,9 @@ void movePlayer(char nextMove, string level, Player& Player1)
         case 'n': 
             // if the Player is in the next row, write a 'P' in the current row 
             if(row == (Player1.row - 1))
-            {
-                if(isValidPosition(buffer[Player1.column]))
-                {
-                    buffer[Player1.column] = 'P';
-                }
-                else
-                {
-                        close(map);
-                        close(temp);
-                        return;
-                }                
+            {                
+                buffer[Player1.column] = 'P';
+              
             }
             // if the current row has the 'P', replace it with a ' '
             if (row == Player1.row)
@@ -182,7 +248,7 @@ void movePlayer(char nextMove, string level, Player& Player1)
             // if the current row is after the row with the Player, write a 'P' in the current row
             if (row == (Player1.row + 1))
             {
-                buffer[Player1.column] = 'P';
+                buffer[Player1.column] = 'P';                
             }
             break;
         case 'e':
