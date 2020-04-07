@@ -10,10 +10,9 @@ importing the map from text file using system I/O
 printing the map to the screen
 creating mosters using threads
 function for threads to calculate next move
-function for monsters to attack
+function to test if player alive or dead
 function for player to complete next move
 function to create fork to next level -- implement later
-function to damage player or monster
 */
 
 #include <iostream>
@@ -46,9 +45,6 @@ void printMap(string, Player&);
 void movePlayer(char, string, Player&);
 void updateMap(string);
 
-
-
-
 int main()
 {
     Player Player1;
@@ -63,6 +59,9 @@ int main()
     // while the player is not dead and user hasn't quit
     cout << "Enter next move: ";
     cin >> nextMove;
+
+    // Check if valid move for player
+    
     // Pass move to movePlayer() function to update players position and map;
     movePlayer(nextMove, levelsList[0], Player1);
     
@@ -95,6 +94,7 @@ void movePlayer(char nextMove, string level, Player& Player1)
     int row = 0;
     int size = COLUMNS;
     
+    
     while((item=read(map, buffer, size))!=0)
     {
         if(row == 0)
@@ -108,28 +108,24 @@ void movePlayer(char nextMove, string level, Player& Player1)
             // if the Player is in the next row, write a 'P' in the current row 
             if(row == (Player1.row - 1))
             {
-                buffer[Player1.column] == 'P';
-                cout << "SET NORTH P";
+                buffer[Player1.column] = 'P';
             }
             // if the current row has the 'P', replace it with a ' '
             if (row == Player1.row)
             {
-                buffer[Player1.column] == '.';
-                cout << "ERASED NORTH P";
+                buffer[Player1.column] = '.';
             }
             break;
         case 's': 
             // if the current row has the 'P', replace it with a ' ' 
             if(row == Player1.row)
             {
-                buffer[Player1.column] == '.';
-                cout << "ERASED SOUTH P";
+                buffer[Player1.column] = '.';
             }
             // if the current row is after the row with the Player, write a 'P' in the current row
             if (row == (Player1.row + 1))
             {
-                buffer[Player1.column] == 'P';
-                cout << "SET SOUTH P";
+                buffer[Player1.column] = 'P';
             }
             break;
         case 'e':
@@ -138,7 +134,6 @@ void movePlayer(char nextMove, string level, Player& Player1)
             {
                 buffer[Player1.column] = '.';
                 buffer[Player1.column + 1] = 'P';
-                cout << "SET EAST P";
             }
             break;
         case 'w':
@@ -147,20 +142,18 @@ void movePlayer(char nextMove, string level, Player& Player1)
             {
                 buffer[Player1.column] = '.';
                 buffer[Player1.column - 1] = 'P';
-                cout << "SET WEST P";
             }
             break;
         }
         item = write(temp, buffer, item);
     }
-    close (map);
+    close(map);
     close(temp);
 
     updateMap(level);
-    
 }
 
-// Function updateMap uses file system calls to compy the map from the temp file to the level file
+// Function updateMap uses file system calls to copy the map from the temp file to the level file
 void updateMap(string level)
 {
     int map, item, temp;
