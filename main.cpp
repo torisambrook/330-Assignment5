@@ -27,6 +27,8 @@ function to create fork to next level -- implement later
 using namespace std;
 
 #define COLUMNS 61
+bool gotoNextLevel = false;
+bool win = false;
 
 struct Player
 {
@@ -44,6 +46,8 @@ struct Monster
 void printMap(string, Player&);
 void movePlayer(char, string, Player&);
 void updateMap(string);
+bool isValidPosition(char);
+bool isValidInput(char);
 
 int main()
 {
@@ -59,22 +63,66 @@ int main()
     // while the player is not dead and user hasn't quit
     cout << "Enter next move: ";
     cin >> nextMove;
-
-    // Check if valid move for player
+    nextMove = tolower(nextMove);
     
-    // Pass move to movePlayer() function to update players position and map;
-    movePlayer(nextMove, levelsList[0], Player1);
-    
+    while(nextMove != 'q')
+    {
+        // Check if it is valid input
+        if(isValidInput(nextMove));
+        {
+            // Pass move to movePlayer() function to update players position and map;
+            movePlayer(nextMove, levelsList[0], Player1);
+            // Update the map to the new level or position of player
+            updateMap(levelsList[0]);
+        }
+        
     printMap(levelsList[0], Player1);
+    cout << "Enter next move: ";
+    cin >> nextMove;
+    nextMove = tolower(nextMove);
+    }
 
 
     return 0;
 }
 
+bool isValidInput(char input)
+{
+    if(input == 'n' || input == 's' || input == 'e' || input == 'w')
+        return true;
+    else
+    {
+        cout << "INVALID INPUT. Please enter N, S, E, or W." << endl;
+        return false;
+    }
+}
+
+bool isValidPosition(char item)
+{
+    // Check if it is a valid position
+    if(item == '.' || item == '~')
+    {
+        return true;
+    }
+    else if (item == '@')
+    {
+        gotoNextLevel = true;
+        return true;
+    }
+    else if(item == '*')
+    {
+        win = true;
+        return true;
+    }
+    else
+    {
+        return false;
+    }   
+}
+
 // Function movePlayer updates the map to hold the new position of the player
 void movePlayer(char nextMove, string level, Player& Player1)
 {
-    nextMove = tolower(nextMove);
     int map, item, temp;
     char buffer[COLUMNS];
     
@@ -101,14 +149,23 @@ void movePlayer(char nextMove, string level, Player& Player1)
             size++;
         
         row++;
-        //NORTH AND SOUTH NOT WORKING
+        
         switch (nextMove)
         {
         case 'n': 
             // if the Player is in the next row, write a 'P' in the current row 
             if(row == (Player1.row - 1))
             {
-                buffer[Player1.column] = 'P';
+                if(isValidPosition(buffer[Player1.column]))
+                {
+                    buffer[Player1.column] = 'P';
+                }
+                else
+                {
+                        close(map);
+                        close(temp);
+                        return;
+                }                
             }
             // if the current row has the 'P', replace it with a ' '
             if (row == Player1.row)
@@ -149,8 +206,6 @@ void movePlayer(char nextMove, string level, Player& Player1)
     }
     close(map);
     close(temp);
-
-    updateMap(level);
 }
 
 // Function updateMap uses file system calls to copy the map from the temp file to the level file
