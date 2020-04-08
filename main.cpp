@@ -23,27 +23,31 @@ function to create fork to next level -- implement later
 #include <sys/stat.h>  //needed for open
 #include <fcntl.h>     //needed for open
 #include <errno.h>
+//#include <sys/wait.h>
 #include <string>
 using namespace std;
 
-#define COLUMNS 61
-bool gotoNextLevel = false;
-bool win = false;
-
 struct Player
 {
-    int row = 0;
-    int column = 0;
-    bool alive = true;
+    int row;
+    int column;
 };
 
 struct Monster 
 {
-    int row = 0;
-    int column = 0;
+    int row;
+    int column;
+    bool moved = false;
 };
 
-void printMap(string, Player&);
+#define COLUMNS 61
+bool gotoNextLevel = false;
+bool win = false;
+const int NUM_MONSTERS = 3;
+//Thread chared memory, holds 3 monster positions
+Monster monsters[NUM_MONSTERS];
+
+void printMap(string, Player&, Monster[]);
 void movePlayer(char, string, Player&);
 void updateMap(string);
 bool checkPosition(char, string, Player);
@@ -54,36 +58,46 @@ int main()
 {
     Player Player1;
     string levelsList[3] = {"level1.txt", "level2.txt", "level3.txt"};
-    printMap(levelsList[0], Player1);
+    printMap(levelsList[0], Player1, monsters);
     char nextMove = ' ';
+    int status;   
+    
     
     // while the monsters haven't reached the player, ask user for next player move. Move the player and monsters. 
     // if monster is adjacent to player than game over and player loses. else if player has reached '@' then move to next level. 
     // else if player has reached '*' then player wins and game over. Print level at end of each loop. 
+
+    cout << "The goal of the game is to avoid the monster and get to the * in the last level. \n" << 
+	    "If the monster reaches you first the game is over. Advance through the levels by \n" <<
+	    "making it to the @ in each level. Enter N, S, E, or W to move the player, and Q to quit." << endl;
     
-    // while the player is not dead and user hasn't quit
     cout << "Enter next move: ";
     cin >> nextMove;
     nextMove = tolower(nextMove);
-    
-    while(nextMove != 'q')
-    {
+
+    //while(nextMove != 'q')
+   // {
         // Check if it is valid input
         if(isValidInput(nextMove) && checkPosition(nextMove, levelsList[0], Player1))
         {
-            // Pass move to movePlayer() function to update players position and map;
-            movePlayer(nextMove, levelsList[0], Player1);
-            // Update the map to the new level or position of player
-            updateMap(levelsList[0]);
-        }
-        
-        printMap(levelsList[0], Player1);
+                // Pass move to movePlayer() function to update players position and map;
+                movePlayer(nextMove, levelsList[0], Player1);
+                
+                // Update the map to the new level or position of player
+                updateMap(levelsList[0]);
+            }
+
+        printMap(levelsList[0], Player1, monsters);
         cout << "Enter next move: ";
         cin >> nextMove;
         nextMove = tolower(nextMove);
-    }
+    //}
+    
+    cout << "\nGAME OVER\n";
+		
     return 0;
 }
+
 
 bool isValidInput(char input)
 {
@@ -304,10 +318,11 @@ void updateMap(string level)
 }
 
 // Function printMap opens the level file, and prints it to the screen.
-void printMap(string level,  Player& Player1)
+void printMap(string level,  Player& Player1, Monster monsters[])
 {
     int map, item;
     char buffer[COLUMNS];
+    int count = 0;
     
     map = open(level.c_str(), O_RDONLY); 
     if(map == -1)
@@ -325,13 +340,19 @@ void printMap(string level,  Player& Player1)
         
         row++;
 
-        // Update Player location and map format
+        // Update Player location, monster locations, and map format
         for(int i = 0; i < COLUMNS; i++)
         {
             if(buffer[i] == 'P')
             {
                 Player1.row = row;
                 Player1.column = i;
+            }
+            else if(buffer[i] == 'M')
+            {
+                monsters[count].row = row;
+                monsters[count].column = i;
+                count++;
             }
             else if (buffer[i] == '.')
             {
@@ -344,5 +365,6 @@ void printMap(string level,  Player& Player1)
     }
 
     cout << endl << "Number of rows: " << row << endl << "Player position: " << Player1.row <<  ", " << Player1.column << endl;
+    cout << "Monster positions: \n" << monsters[0].row << ", " << monsters[0].column << endl << monsters[1].row << ", " << monsters[1].column << endl <<monsters[2].row << ", " << monsters[2].column << endl;
     close (map);
 }
