@@ -103,13 +103,20 @@ int main()
             // Pass move to movePlayer() function to update players position and map;
             movePlayer(nextMove, levelsList[0]);
             updateMap(levelsList[0]);
-            
-            moveMonsters(levelsList[0]);
-            updateMap(levelsList[0]);
-            moveMonsters(levelsList[0]);
-            updateMap(levelsList[0]);
-            moveMonsters(levelsList[0]);
-            updateMap(levelsList[0]);
+            while(monsterCount < 3)
+            {
+                int mrow = monsters[monsterCount].row;
+                int mcol = monsters[monsterCount].column;
+                if(checkPosition(monsters[monsterCount].nextMove, levelsList[0], mrow, mcol))
+                {
+                    moveMonsters(levelsList[0]);
+                    updateMap(levelsList[0]);
+                }
+                else
+                {
+                    monsterCount++;
+                }
+            }
             monsterCount = 0;
             
             
@@ -175,14 +182,14 @@ void moveMonsters(string level)
     map2 = open(level.c_str(), O_RDONLY); 
     if(map2 == -1)
     {
-        perror("\nmap file open errror: ");
+        perror("\nMove Monsters map file open errror: ");
         exit(1);
     }
 
     temp2 = open("temp.txt", O_WRONLY);
     if(temp2 == -1)
     {
-        perror("\ntemp file open errror: ");
+        perror("\nMove Monsters temp file open errror: ");
         exit(1);
     }
     
@@ -191,12 +198,6 @@ void moveMonsters(string level)
         if(row == 0)
             size++;
         row++;
-
-        if(!checkPosition(monsters[monsterCount].nextMove, level, mrow, mcol))
-        {
-            cout << "INVALID MOVE FOR MONSTER: " << monsterCount << endl;
-            break;
-        }
         
         switch(monsters[monsterCount].nextMove)
         {
@@ -268,7 +269,7 @@ void findNextMonsterMove(string level)
     map = open(level.c_str(), O_RDONLY); 
     if(map == -1)
     {
-        perror("\nmap file open errror: ");
+        perror("\nFind next monster move map file open errror: ");
         exit(1);
     }
     
@@ -376,7 +377,7 @@ bool checkPosition(char nextMove, string level, int testRow, int testCol)
     map = open(level.c_str(), O_RDONLY); 
     if(map == -1)
     {
-        perror("\nmap file open errror: ");
+        perror("\nCHECK POSITION map file open errror: ");
         exit(1);
     }
     
@@ -454,14 +455,14 @@ void movePlayer(char nextMove, string level)
     map = open(level.c_str(), O_RDONLY); 
     if(map == -1)
     {
-        perror("\nmap file open errror: ");
+        perror("\nMOVE PLAYER map file open errror: ");
         exit(1);
     }
 
     temp = open("temp.txt", O_WRONLY);
     if(temp == -1)
     {
-        perror("\ntemp file open errror: ");
+        perror("\nMOVE PLAYER temp file open errror: ");
         exit(1);
     }
     
@@ -530,14 +531,14 @@ void updateMap(string level)
     map = open(level.c_str(), O_WRONLY); 
     if(map == -1)
     {
-        perror("\nmap file open errror: ");
+        perror("\nUPDATE MAP map file open errror: ");
         exit(1);
     }
 
     temp = open("temp.txt", O_RDONLY);
     if(temp == -1)
     {
-        perror("\ntemp file open errror: ");
+        perror("\nUPDATE MAP temp file open errror: ");
         exit(1);
     }
 
@@ -546,8 +547,8 @@ void updateMap(string level)
         // Update the map by copying the map from temp.txt to the level file
         item = write(map, buffer, item);
     }
-    close(temp);
     close(map);
+    close(temp);
 }
 
 // Function printMap opens the level file, and prints it to the screen.
@@ -560,7 +561,7 @@ void printMap(string level)
     map = open(level.c_str(), O_RDONLY); 
     if(map == -1)
     {
-        perror("\nmap file open errror: ");
+        perror("\n PRINT MAP map file open errror: ");
         exit(1);
     }
     int row = 0;
