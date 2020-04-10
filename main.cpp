@@ -59,6 +59,7 @@ void updateMap(string);
 bool checkPosition(char, string, int, int);
 bool isValidPosition(char);
 bool isValidInput(char);
+void * gamePlay(void *);
 //void * moveMonsters(void *);
 void moveMonsters(string );
 char calculateDistance(int, int, int, int);
@@ -66,15 +67,16 @@ void findNextMonsterMove(string);
 
 int main()
 {
-    string levelsList[3] = {"level1.txt", "level2.txt", "level3.txt"};
+    string levelsList[2] = {"level1.txt", "level2.txt"};
     printMap(levelsList[0]);
     findNextMonsterMove(levelsList[0]);
     char nextMove = ' ';
-    int status;   
-    //pthread_t *thread_ids = new pthread_t[NUM_MONSTERS];
+    int status;  
+    void *p_status; 
+    pthread_t *thread_ids = new pthread_t[2];
 
     //Use unbuffered output on stdout
-    /*
+    
     setvbuf(stdout, (char *) NULL, _IONBF, 0);
 
     //Set up an output lock so that threads wait their turn to speak.
@@ -82,13 +84,51 @@ int main()
     {
         perror("Could not create mutex for output: ");
         return 1;
-    }   
-    */ 
+    } 
 
     cout << "The goal of the game is to avoid the monster and get to the * in the last level. \n" << 
 	    "If the monster reaches you first the game is over. Advance through the levels by \n" <<
 	    "making it to the @ in each level. Enter N, S, E, or W to move the player, and Q to quit." << endl;
+     
+    // generate threads 
+    for (int i = 0; i < 1; i++)
+    {
+        if( pthread_create(&thread_ids[i], NULL, gamePlay, &levelsList[0]) > 0)
+        {
+            perror("creating thread:");
+            return 2;
+        }
+    }
+
+    // join threads
+    for (int i = 0; i < 1; i++)
+    {
+        if (pthread_join(thread_ids[i], NULL) != 0)
+        {
+            perror("trouble joining thread: ");
+            return 3;
+        }
+    }
+            
+    delete [] thread_ids;
+
+    cout << "\nGAME OVER\n";
+		
+    return 0;
+}
+
+void * gamePlay(void * lev)
+{
+    char nextMove;
+    string level = (*(string*)lev);
     
+    // Lock critical section
+    if (pthread_mutex_lock(&output_lock) != 0)
+    {
+        perror("Could not lock output: ");
+        return NULL; //something horrible happened - exit whole program with error
+    }
+
     cout << "Enter next move: ";
     cin >> nextMove;
     nextMove = tolower(nextMove);
@@ -98,78 +138,56 @@ int main()
         int prow = Player1.row;
         int pcol = Player1.column;
         // Check if it is valid input
-        if(isValidInput(nextMove) && checkPosition(nextMove, levelsList[0], prow, pcol))
+        if(isValidInput(nextMove) && checkPosition(nextMove, level, prow, pcol))
         {         
             // Pass move to movePlayer() function to update players position and map;
-            movePlayer(nextMove, levelsList[0]);
-            updateMap(levelsList[0]);
+            movePlayer(nextMove, level);
+            updateMap(level);
             while(monsterCount < 3)
             {
                 int mrow = monsters[monsterCount].row;
                 int mcol = monsters[monsterCount].column;
-                if(checkPosition(monsters[monsterCount].nextMove, levelsList[0], mrow, mcol))
+                if(checkPosition(monsters[monsterCount].nextMove, level, mrow, mcol))
                 {
-                    moveMonsters(levelsList[0]);
-                    updateMap(levelsList[0]);
+                    moveMonsters(level);
+                    updateMap(level);
                 }
                 else
                 {
                     monsterCount++;
                 }
             }
-            monsterCount = 0;
-            
-            
-            /*
-            // generate threads 
-            for (int i = 0; i < NUM_MONSTERS; i++)
-            {
-                if( pthread_create(&thread_ids[i], NULL, moveMonsters, &levelsList[0]) > 0)
-                {
-                    perror("creating thread:");
-                    return 2;
-                }
-            }
-
-            // join threads and print their return values
-            for (int i = 0; i < NUM_MONSTERS; i++)
-            {
-                if (pthread_join(thread_ids[i], NULL) != 0)
-                {
-                    perror("trouble joining thread: ");
-                    return 3;
-                }
-            }
-            // delete dynamically allocated thread array
-            delete [] thread_ids;
-            */
-
-            // Update the map to the new level or position of player
+            monsterCount = 0;           
         }
-        
-        findNextMonsterMove(levelsList[0]);
-        printMap(levelsList[0]);
 
-        cout << "Enter next move: ";
+        findNextMonsterMove(level);
+        printMap(level);
+
+        cout << endl << "Enter next move: ";
         cin >> nextMove;
         nextMove = tolower(nextMove);
     }
-    
-    cout << "\nGAME OVER\n";
-		
-    return 0;
+    // Unlock critical section
+    if (pthread_mutex_unlock(&output_lock) != 0)
+    {
+        perror("Could not unlock output: ");
+        return NULL; //something horrible happened - exit whole program with error
+    }
+
+    return NULL;
 }
 
 //void * moveMonsters(void *lev)
 void moveMonsters(string level)
 {
-    /*
+    cout << "MOVEMONSTER called\n";
     // Set up lock around critical section
-    if (pthread_mutex_lock(&output_lock) != 0)
+    /*if (pthread_mutex_lock(&output_lock) != 0)
     {
         perror("Could not lock output: ");
-        exit(4); //something horrible happened - exit whole program with error
+        return NULL; //something horrible happened - exit whole program with error
     }
+    cout << "Entered critical section\n";
     */
     int map2, item2, temp2, mrow, mcol;
     char buffer[COLUMNS];
@@ -178,19 +196,25 @@ void moveMonsters(string level)
     //string level = (*(string*)lev);
     mrow = monsters[monsterCount].row;
     mcol = monsters[monsterCount].column;
+
+    if(!checkPosition(monsters[monsterCount].nextMove, level, mrow, mcol))
+    {
+        monsterCount++;
+        return;
+    }
     
     map2 = open(level.c_str(), O_RDONLY); 
     if(map2 == -1)
     {
         perror("\nMove Monsters map file open errror: ");
-        exit(1);
+        return;
     }
 
     temp2 = open("temp.txt", O_WRONLY);
     if(temp2 == -1)
     {
         perror("\nMove Monsters temp file open errror: ");
-        exit(1);
+        return;
     }
     
     while((item2=read(map2, buffer, size))!=0)
@@ -235,9 +259,7 @@ void moveMonsters(string level)
                 buffer[mcol] = '.';
             }
             break;
-        }
-
-        
+        }        
         item2 = write(temp2, buffer, item2);
     }
     
@@ -246,15 +268,18 @@ void moveMonsters(string level)
 
     // Increase monster count for next thread
     monsterCount++;
+    updateMap(level);
     /*
     // Unlock critical section
     if (pthread_mutex_unlock(&output_lock) != 0)
     {
         perror("Could not unlock output: ");
-        exit(5); //something horrible happened - exit whole program with error
+        return NULL; //something horrible happened - exit whole program with error
     }
-    return NULL;
+    cout << "Exited critical section\n";
     */
+    return;
+
 }
 
 void findNextMonsterMove(string level)
@@ -284,7 +309,6 @@ void findNextMonsterMove(string level)
             if(buffer[i] == 'M')
             {
                 monsters[count].nextMove = calculateDistance(row, i, Player1.row, Player1.column);
-                cout << "MONSTER "<< count << " NEXT MOVE IS: " << monsters[count].nextMove << endl;
                 count++;
             }
         }
@@ -597,9 +621,10 @@ void printMap(string level)
         // Print the map to the screen using the write() system call
         item = write(1, buffer, item);
     }
-
+    /*
     cout << endl << "Number of rows: " << row << endl << "Player position: " << Player1.row <<  ", " << Player1.column << endl;
     cout << "Monster positions: \n" << monsters[0].row << ", " << monsters[0].column << endl << monsters[1].row << ", " << monsters[1].column << endl <<monsters[2].row << ", " << monsters[2].column << endl;
     cout << "Monster next moves: \n" << monsters[0].nextMove << " " << monsters[1].nextMove << " " << monsters[2].nextMove << endl;
+    */
     close (map);
 }
