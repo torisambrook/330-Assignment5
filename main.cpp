@@ -18,7 +18,6 @@ function to create fork to next level -- implement later
 #include <iostream>
 #include <cstdio>
 #include <unistd.h>
-#include <cstdlib>
 #include <sys/types.h> //needed for open
 #include <sys/stat.h>  //needed for open
 #include <fcntl.h>     //needed for open
@@ -96,18 +95,21 @@ int main()
 
     while(nextMove != 'q')
     {
+        int prow = Player1.row;
+        int pcol = Player1.column;
         // Check if it is valid input
-        if(isValidInput(nextMove))
-        {
-            if(checkPosition(nextMove, levelsList[0], Player1.row, Player1.column))
-            {
-                // Pass move to movePlayer() function to update players position and map;
-                movePlayer(nextMove, levelsList[0]);
-            }
+        if(isValidInput(nextMove) && checkPosition(nextMove, levelsList[0], prow, pcol))
+        {         
+            // Pass move to movePlayer() function to update players position and map;
+            movePlayer(nextMove, levelsList[0]);
+            updateMap(levelsList[0]);
             
             moveMonsters(levelsList[0]);
+            updateMap(levelsList[0]);
             moveMonsters(levelsList[0]);
+            updateMap(levelsList[0]);
             moveMonsters(levelsList[0]);
+            updateMap(levelsList[0]);
             monsterCount = 0;
             
             
@@ -136,7 +138,6 @@ int main()
             */
 
             // Update the map to the new level or position of player
-            updateMap(levelsList[0]);
         }
         
         findNextMonsterMove(levelsList[0]);
@@ -163,7 +164,7 @@ void moveMonsters(string level)
         exit(4); //something horrible happened - exit whole program with error
     }
     */
-    int map, item, temp, mrow, mcol;
+    int map2, item2, temp2, mrow, mcol;
     char buffer[COLUMNS];
     int row = 0;
     int size = COLUMNS;
@@ -171,29 +172,32 @@ void moveMonsters(string level)
     mrow = monsters[monsterCount].row;
     mcol = monsters[monsterCount].column;
     
-    map = open(level.c_str(), O_RDONLY); 
-    if(map == -1)
+    map2 = open(level.c_str(), O_RDONLY); 
+    if(map2 == -1)
     {
         perror("\nmap file open errror: ");
         exit(1);
     }
 
-    temp = open("temp.txt", O_WRONLY);
-    if(temp == -1)
+    temp2 = open("temp.txt", O_WRONLY);
+    if(temp2 == -1)
     {
         perror("\ntemp file open errror: ");
         exit(1);
     }
     
-    while((item=read(map, buffer, size))!=0)
+    while((item2=read(map2, buffer, size))!=0)
     {
         if(row == 0)
             size++;
         row++;
 
         if(!checkPosition(monsters[monsterCount].nextMove, level, mrow, mcol))
+        {
+            cout << "INVALID MOVE FOR MONSTER: " << monsterCount << endl;
             break;
-
+        }
+        
         switch(monsters[monsterCount].nextMove)
         {
         case 'n':
@@ -231,10 +235,13 @@ void moveMonsters(string level)
             }
             break;
         }
-        item = write(temp, buffer, item);
+
+        
+        item2 = write(temp2, buffer, item2);
     }
-    close(map);
-    close(temp);
+    
+    close(map2);
+    close(temp2);
 
     // Increase monster count for next thread
     monsterCount++;
@@ -306,7 +313,7 @@ char calculateDistance(int mrow, int mcolumn, int prow, int pcolumn)
     east = sqrt((x*x)+(y*y));
     if(min > east)
         min = east;
-        
+
     // calculate distance by moving monster west
     x = (prow - mrow);
     y = (pcolumn - (mcolumn - 1));
