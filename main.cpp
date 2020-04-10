@@ -51,16 +51,17 @@ Player Player1;
 //Thread shared memory, holds 3 monster positions
 Monster monsters[NUM_MONSTERS];
 // monCount keeps track of which monster threads are working on
-int monCount = 0;
+int monsterCount = 0;
 pthread_mutex_t output_lock;
 
 void printMap(string);
 void movePlayer(char, string);
 void updateMap(string);
-bool checkPosition(char, string);
+bool checkPosition(char, string, int, int);
 bool isValidPosition(char);
 bool isValidInput(char);
-void * moveMonsters(void *);
+//void * moveMonsters(void *);
+void moveMonsters(string );
 char calculateDistance(int, int, int, int);
 void findNextMonsterMove(string);
 
@@ -71,9 +72,10 @@ int main()
     findNextMonsterMove(levelsList[0]);
     char nextMove = ' ';
     int status;   
-    pthread_t *thread_ids = new pthread_t[NUM_MONSTERS];
+    //pthread_t *thread_ids = new pthread_t[NUM_MONSTERS];
 
     //Use unbuffered output on stdout
+    /*
     setvbuf(stdout, (char *) NULL, _IONBF, 0);
 
     //Set up an output lock so that threads wait their turn to speak.
@@ -81,7 +83,8 @@ int main()
     {
         perror("Could not create mutex for output: ");
         return 1;
-    }    
+    }   
+    */ 
 
     cout << "The goal of the game is to avoid the monster and get to the * in the last level. \n" << 
 	    "If the monster reaches you first the game is over. Advance through the levels by \n" <<
@@ -94,11 +97,21 @@ int main()
     while(nextMove != 'q')
     {
         // Check if it is valid input
-        if(isValidInput(nextMove) && checkPosition(nextMove, levelsList[0]))
+        if(isValidInput(nextMove))
         {
-            // Pass move to movePlayer() function to update players position and map;
-            movePlayer(nextMove, levelsList[0]);
-
+            if(checkPosition(nextMove, levelsList[0], Player1.row, Player1.column))
+            {
+                // Pass move to movePlayer() function to update players position and map;
+                movePlayer(nextMove, levelsList[0]);
+            }
+            
+            moveMonsters(levelsList[0]);
+            moveMonsters(levelsList[0]);
+            moveMonsters(levelsList[0]);
+            monsterCount = 0;
+            
+            
+            /*
             // generate threads 
             for (int i = 0; i < NUM_MONSTERS; i++)
             {
@@ -120,6 +133,7 @@ int main()
             }
             // delete dynamically allocated thread array
             delete [] thread_ids;
+            */
 
             // Update the map to the new level or position of player
             updateMap(levelsList[0]);
@@ -138,22 +152,24 @@ int main()
     return 0;
 }
 
-void * moveMonsters(void *lev)
+//void * moveMonsters(void *lev)
+void moveMonsters(string level)
 {
+    /*
     // Set up lock around critical section
     if (pthread_mutex_lock(&output_lock) != 0)
     {
         perror("Could not lock output: ");
         exit(4); //something horrible happened - exit whole program with error
     }
-
+    */
     int map, item, temp, mrow, mcol;
     char buffer[COLUMNS];
     int row = 0;
     int size = COLUMNS;
-    string level = (*(string*)lev);
-    mrow = monsters[monCount].row;
-    mcol = monsters[monCount].column;
+    //string level = (*(string*)lev);
+    mrow = monsters[monsterCount].row;
+    mcol = monsters[monsterCount].column;
     
     map = open(level.c_str(), O_RDONLY); 
     if(map == -1)
@@ -175,28 +191,27 @@ void * moveMonsters(void *lev)
             size++;
         row++;
 
-        switch(monsters[monCount].nextMove)
+        if(!checkPosition(monsters[monsterCount].nextMove, level, mrow, mcol))
+            break;
+
+        switch(monsters[monsterCount].nextMove)
         {
         case 'n':
             if(row == (mrow - 1))
             {            
-                if(isValidPosition(buffer[mcol]))  
-                    buffer[mcol] = 'M';
-                else
-                    break;
+                 buffer[mcol] = 'M';
             }
             if(row == mrow)
+            {
                 buffer[mcol] = '.';
+            }
             break;
         case 's':
             if(row == mrow)
             {
-                if(isValidPosition(buffer[mcol]))  
-                    buffer[mcol] = '.';
-                else
-                    break;         
+                buffer[mcol] = '.';  
             }
-            if (row == (Player1.row + 1))
+            if (row == (mrow + 1))
             {
                 buffer[mcol] = 'M';                
             }
@@ -204,25 +219,15 @@ void * moveMonsters(void *lev)
         case 'e':
             if(row == mrow)
             {
-                if(isValidPosition(buffer[mcol])) 
-                {
-                    buffer[mcol] = '.';
-                    buffer[mcol + 1] = 'M';
-                }
-                else
-                    break;
+                buffer[mcol + 1] = 'M';
+                buffer[mcol] = '.';
             }
             break;
         case 'w':
             if(row == mrow)
             {
-                if(isValidPosition(buffer[mcol])) 
-                {
-                    buffer[mcol] = '.';
-                    buffer[mcol - 1] = 'M';
-                }
-                else
-                    break;
+                buffer[mcol - 1] = 'M';
+                buffer[mcol] = '.';
             }
             break;
         }
@@ -232,8 +237,8 @@ void * moveMonsters(void *lev)
     close(temp);
 
     // Increase monster count for next thread
-    monCount++;
-
+    monsterCount++;
+    /*
     // Unlock critical section
     if (pthread_mutex_unlock(&output_lock) != 0)
     {
@@ -241,11 +246,11 @@ void * moveMonsters(void *lev)
         exit(5); //something horrible happened - exit whole program with error
     }
     return NULL;
+    */
 }
 
 void findNextMonsterMove(string level)
 {
-    cout << "FINDNEXTMONETERMOVE CALLED\n";
     int map, item;
     char buffer[COLUMNS];
     int row = 0;
@@ -265,14 +270,15 @@ void findNextMonsterMove(string level)
         if(row == 0)
             size++;
         row++;
+
         for(int i = 0; i < COLUMNS; i++)
         {
             if(buffer[i] == 'M')
             {
                 monsters[count].nextMove = calculateDistance(row, i, Player1.row, Player1.column);
                 cout << "MONSTER "<< count << " NEXT MOVE IS: " << monsters[count].nextMove << endl;
+                count++;
             }
-            count++;
         }
     }
     close(map);
@@ -280,16 +286,15 @@ void findNextMonsterMove(string level)
 
 char calculateDistance(int mrow, int mcolumn, int prow, int pcolumn)
 {
-    cout << "CALCULATE DISTANCE CALLED\n";
     double north, south, east, west, x, y, min;
     // calculate distance by moving monster north
-    x = (prow - mrow - 1);
+    x = (prow - (mrow - 1));
     y = (pcolumn - mcolumn);
     north = sqrt((x*x)+(y*y));
     min = north;
 
     // calculate distance by moving monster south
-    x = (prow - mrow + 1);
+    x = (prow - (mrow + 1));
     y = (pcolumn - mcolumn);
     south = sqrt((x*x)+(y*y));
     if(min > south)
@@ -297,15 +302,14 @@ char calculateDistance(int mrow, int mcolumn, int prow, int pcolumn)
 
     // calculate distance by moving monster east
     x = (prow - mrow);
-    y = (pcolumn - mcolumn + 1);
+    y = (pcolumn - (mcolumn + 1));
     east = sqrt((x*x)+(y*y));
     if(min > east)
         min = east;
-
-
+        
     // calculate distance by moving monster west
     x = (prow - mrow);
-    y = (pcolumn - mcolumn - 1);
+    y = (pcolumn - (mcolumn - 1));
     west = sqrt((x*x)+(y*y));
     if(min > west)
         min = west;
@@ -355,7 +359,7 @@ bool isValidPosition(char item)
     }  
 }
 
-bool checkPosition(char nextMove, string level)
+bool checkPosition(char nextMove, string level, int testRow, int testCol)
 {
     int map, item;
     char buffer[COLUMNS];
@@ -379,9 +383,9 @@ bool checkPosition(char nextMove, string level)
         switch(nextMove)
         {
         case 'n':
-            if(row == (Player1.row - 1))
+            if(row == (testRow - 1))
             {
-                if(isValidPosition(buffer[Player1.column]))
+                if(isValidPosition(buffer[testCol]))
                     return true;
                 else
                 {
@@ -391,9 +395,9 @@ bool checkPosition(char nextMove, string level)
             }
             break;
         case 's':
-            if(row == (Player1.row + 1))
+            if(row == (testRow + 1))
             {
-                if(isValidPosition(buffer[Player1.column]))
+                if(isValidPosition(buffer[testCol]))
                     return true;
                 else
                 {
@@ -403,9 +407,9 @@ bool checkPosition(char nextMove, string level)
             }
             break;
         case 'e':
-            if(row == Player1.row)
+            if(row == testRow)
             {
-                if(isValidPosition(buffer[Player1.column + 1]))
+                if(isValidPosition(buffer[testCol + 1]))
                     return true;
                 else
                 {
@@ -415,9 +419,9 @@ bool checkPosition(char nextMove, string level)
             }
             break;
         case 'w':
-            if(row == Player1.row)
+            if(row == testRow)
             {
-                if(isValidPosition(buffer[Player1.column - 1]))
+                if(isValidPosition(buffer[testCol - 1]))
                     return true;
                 else
                 {
