@@ -42,11 +42,11 @@ struct Monster
     char nextMove;
 };
 
-#define COLUMNS 61
+const int COLUMNS = 61;
+const int NUM_THREADS = 2;
 const int NUM_MONSTERS = 3;
-bool gotoNextLevel = false;
-bool win = false;
-bool quit = false;
+bool gotoNextLevel, win, quit;
+
 Player Player1;
 Monster monsters[NUM_MONSTERS];
 int monsterCount = 0;   // monCount keeps track of which monster threads are working on
@@ -66,7 +66,8 @@ void findNextMonsterMove(string);
 int main()
 {
     string levelsList[2] = {"level1.txt", "level2.txt"}; 
-    pthread_t *thread_ids = new pthread_t[2];
+    pthread_t *thread_ids = new pthread_t[NUM_THREADS];
+    quit = false;
 
     //Use unbuffered output on stdout
     setvbuf(stdout, (char *) NULL, _IONBF, 0);
@@ -83,27 +84,22 @@ int main()
 	    "making it to the @ in each level. Enter N, S, E, or W to move the player, and Q to quit." << endl;
      
     // generate threads 
-    for (int i = 0; i < 1; i++)
+    for (int i = 0; i < NUM_THREADS; i++)
     {
-        if( pthread_create(&thread_ids[i], NULL, gamePlay, &levelsList[0]) > 0)
+        if((pthread_create(&thread_ids[i], NULL, gamePlay, &levelsList[i]) > 0))
         {
             perror("creating thread:");
             return 2;
         }
         if(quit)
         {
-            cout << endl << "YOU HAVE QUIT THE GAME." << endl;
+            cout << endl << "YOU QUIT THE GAME." << endl;
             return 3;
-        }
-        if(win)
-        {
-            cout << endl << "CONGRADULATIONS! YOU HAVE WON THE GAME." << endl;
-            return 4;
         }
     }
 
     // join threads
-    for (int i = 0; i < 1; i++)
+    for (int i = 0; i < NUM_THREADS; i++)
     {
         if (pthread_join(thread_ids[i], NULL) != 0)
         {
@@ -112,9 +108,10 @@ int main()
         }
     }
 
-    delete [] thread_ids;
-
-    cout << "\nGAME OVER\n";
+    if(win)
+        cout << endl << "CONGRADULATIONS! YOU HAVE WON THE GAME." << endl;
+    else
+        cout << "\nGAME OVER\n";
 		
     return 0;
 }
@@ -130,27 +127,32 @@ void * gamePlay(void * lev)
         perror("Could not lock output: ");
         return NULL; //something horrible happened - exit whole program with error
     }
+    win = false;
+    gotoNextLevel = false;
 
-    do 
+    printMap(level);
+    findNextMonsterMove(level); 
+
+    cout << endl << "Enter next move: ";
+    cin >> nextMove;
+    nextMove = tolower(nextMove);
+    
+    while(nextMove != 'q')
     {
-        updateMap(level);
-        findNextMonsterMove(level); 
-        printMap(level);
-
-        cout << endl << "Enter next move: ";
-        cin >> nextMove;
-        nextMove = tolower(nextMove);
-
         int prow = Player1.row;
         int pcol = Player1.column;
         // Check if it is valid input
         if(isValidInput(nextMove) && checkPosition(nextMove, level, prow, pcol))
-        {         
+        {
+            // If the player reaches the '@' exit and go to the next level
+            if(gotoNextLevel)
+                break;
+            
             // Pass move to movePlayer() function to update players position and map;
             movePlayer(nextMove, level);
             updateMap(level);
             
-            while(monsterCount < 3)
+            while(monsterCount < NUM_MONSTERS)
             {
                 int mrow = monsters[monsterCount].row;
                 int mcol = monsters[monsterCount].column;
@@ -166,12 +168,17 @@ void * gamePlay(void * lev)
             }
             monsterCount = 0;           
         }
+        updateMap(level);
+        printMap(level);
+        findNextMonsterMove(level); 
 
-    } while (nextMove != 'q' && !gotoNextLevel && !win);
-    
-    if(nextMove == 'q')
-    {
-        quit = true;
+        // If the player has reached the '*' we printed the level and will now exit
+        if(win)
+            break;
+
+        cout << endl << "Enter next move: ";
+        cin >> nextMove;
+        nextMove = tolower(nextMove);
     }
 
     // Unlock critical section
@@ -347,8 +354,13 @@ char calculateDistance(int mrow, int mcolumn, int prow, int pcolumn)
 
 bool isValidInput(char input)
 {
-    if(input == 'n' || input == 's' || input == 'e' || input == 'w' || input == 'q')
+    if(input == 'n' || input == 's' || input == 'e' || input == 'w')
         return true;
+    else if(input == 'q')
+    {
+        quit = true;
+        return true;
+    }
     else
     {
         cout << "INVALID INPUT. Please enter N, S, E, or W." << endl;
@@ -364,6 +376,7 @@ bool isValidPosition(char item)
     }
     else if (item == '@')
     {
+        cout << "ABOUT TO BE NEXT LEVEL\n";
         gotoNextLevel = true;
         return true;
     }
@@ -536,10 +549,8 @@ void movePlayer(char nextMove, string level)
 // Function updateMap uses file system calls to copy the map from the temp file to the level file
 void updateMap(string level)
 {
-    int map, item, temp, row, size, count;
+    int map, item, temp;
     char buffer[COLUMNS];
-    row = count = 0;
-    size = COLUMNS;
     
     map = open(level.c_str(), O_WRONLY); 
     if(map == -1)
@@ -555,27 +566,8 @@ void updateMap(string level)
         exit(1);
     }
 
-    while((item=read(temp, buffer, size))!=0)
+    while((item=read(temp, buffer, COLUMNS))!=0)
     {
-        if(row == 0)
-            size++;
-        row++;
-
-        // Update Player location, monster locations, and map format
-        for(int i = 0; i < COLUMNS; i++)
-        {
-            if(buffer[i] == 'P')
-            {
-                Player1.row = row;
-                Player1.column = i;
-            }
-            else if(buffer[i] == 'M')
-            {
-                monsters[count].row = row;
-                monsters[count].column = i;
-                count++;
-            }
-        }
         
         // Update the map by copying the map from temp.txt to the level file
         item = write(map, buffer, item);
@@ -607,10 +599,21 @@ void printMap(string level)
         
         row++;
 
-        // Update map format
+        //Update Player location, monster locations, and map format
         for(int i = 0; i < COLUMNS; i++)
         {
-            if (buffer[i] == '.')
+            if(buffer[i] == 'P')
+            {
+                Player1.row = row;
+                Player1.column = i;
+            }
+            else if(buffer[i] == 'M')
+            {
+                monsters[count].row = row;
+                monsters[count].column = i;
+                count++;
+            }
+            else if (buffer[i] == '.')
             {
                 buffer[i] == ' ';
             }
