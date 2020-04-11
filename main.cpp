@@ -79,7 +79,7 @@ int main()
         perror("Could not create mutex for output: ");
         return 1;
     } 
-    cout << "WELCOME TO THE GAME! HERE ARE THE RULES:" << endl;
+    cout << "\nWELCOME TO THE GAME! HERE ARE THE RULES:" << endl;
     cout << "The goal of the game is to move the player 'P' and win by reaching the '*' in the last level. \n" << 
 	        "If a monster 'M' reaches you first the game is over. Advance through the levels by making it \n" << 
             "to the '@' in each level. Watch out for other symbols as they might be obsticals! Enter N, S,\n" << 
@@ -105,18 +105,19 @@ int main()
         }
     }
 
-    if(quit)
-    {
-        cout << endl << endl << "YOU QUIT THE GAME." << endl;
-    }
     if(isDead())
     {
-        cout << endl << endl << "THE PLAYER HAS DIED. GAME OVER." << endl;
+        cout << endl << "THE PLAYER HAS DIED." << endl;
     }
-    if(win)
+    else if(quit)
     {
-        cout << endl << endl << "CONGRADULATIONS! YOU HAVE WON THE GAME." << endl;
+        cout << endl << "YOU QUIT THE GAME." << endl;
     }
+    else if(win)
+    {
+        cout << endl << "CONGRADULATIONS! YOU HAVE WON THE GAME." << endl;
+    }
+    cout << "GAME OVER." << endl << endl;
 		
     return 0;
 }
@@ -125,16 +126,14 @@ void * gamePlay(void * lev)
 {
     char nextMove;
     string level = (*(string*)lev);
-    
+
     // Lock critical section
     if (pthread_mutex_lock(&output_lock) != 0)
     {
         perror("Could not lock output: ");
         return NULL; //something horrible happened - exit whole program with error
     }
-    win = false;
-    gotoNextLevel = false;
-    
+
     if(quit)
     {
         // Unlock critical section
@@ -146,6 +145,9 @@ void * gamePlay(void * lev)
 
         return NULL;
     }
+    
+    win = false;
+    gotoNextLevel = false;
     
     printMap(level);
     findNextMonsterMove(level); 
@@ -188,8 +190,7 @@ void * gamePlay(void * lev)
             }
             monsterCount = 0;           
         }
-        
-        updateMap(level);
+
         printMap(level);
         findNextMonsterMove(level); 
 
@@ -201,6 +202,9 @@ void * gamePlay(void * lev)
         cin >> nextMove;
         nextMove = tolower(nextMove);
     }
+
+    if(nextMove == 'q')
+        quit = true;
 
     // Unlock critical section
     if (pthread_mutex_unlock(&output_lock) != 0)
@@ -404,10 +408,11 @@ char calculateDistance(int mrow, int mcolumn, int prow, int pcolumn)
 bool isValidInput(char input)
 {
     if(input == 'n' || input == 's' || input == 'e' || input == 'w')
+    {
         return true;
+    }
     else if(input == 'q')
     {
-        quit = true;
         return false;
     }
     else
@@ -628,6 +633,7 @@ void updateMap(string level)
 // Function printMap opens the level file, and prints it to the screen.
 void printMap(string level)
 {
+    cout << endl;
     int map, item;
     char buffer[COLUMNS];
     int count = 0;
