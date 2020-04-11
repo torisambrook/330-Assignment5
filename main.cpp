@@ -16,7 +16,6 @@ function to create fork to next level -- implement later
 */
 
 #include <iostream>
-#include <cstdio>
 #include <unistd.h>
 #include <sys/types.h> //needed for open
 #include <sys/stat.h>  //needed for open
@@ -45,7 +44,9 @@ struct Monster
 const int COLUMNS = 61;
 const int NUM_THREADS = 2;
 const int NUM_MONSTERS = 3;
-bool gotoNextLevel, win, quit;
+bool gotoNextLevel = false;
+bool win = false;
+bool quit = false;
 
 Player Player1;
 Monster monsters[NUM_MONSTERS];
@@ -62,12 +63,12 @@ void * gamePlay(void *);
 void moveMonsters(string );
 char calculateDistance(int, int, int, int);
 void findNextMonsterMove(string);
+bool isDead();
 
 int main()
 {
     string levelsList[2] = {"level1.txt", "level2.txt"}; 
     pthread_t *thread_ids = new pthread_t[NUM_THREADS];
-    quit = false;
 
     //Use unbuffered output on stdout
     setvbuf(stdout, (char *) NULL, _IONBF, 0);
@@ -78,10 +79,11 @@ int main()
         perror("Could not create mutex for output: ");
         return 1;
     } 
-
-    cout << "The goal of the game is to avoid the monster and get to the * in the last level. \n" << 
-	    "If the monster reaches you first the game is over. Advance through the levels by \n" <<
-	    "making it to the @ in each level. Enter N, S, E, or W to move the player, and Q to quit." << endl;
+    cout << "WELCOME TO THE GAME! HERE ARE THE RULES:" << endl;
+    cout << "The goal of the game is to move the player 'P' and win by reaching the '*' in the last level. \n" << 
+	        "If a monster 'M' reaches you first the game is over. Advance through the levels by making it \n" << 
+            "to the '@' in each level. Watch out for other symbols as they might be obsticals! Enter N, S,\n" << 
+            "E, or W to move the player, and Q to quit." << endl << endl;
      
     // generate threads 
     for (int i = 0; i < NUM_THREADS; i++)
@@ -91,11 +93,6 @@ int main()
             perror("creating thread:");
             return 2;
         }
-        if(quit)
-        {
-            cout << endl << "YOU QUIT THE GAME." << endl;
-            return 3;
-        }
     }
 
     // join threads
@@ -104,14 +101,22 @@ int main()
         if (pthread_join(thread_ids[i], NULL) != 0)
         {
             perror("trouble joining thread: ");
-            return 5;
+            return 3;
         }
     }
 
+    if(quit)
+    {
+        cout << endl << endl << "YOU QUIT THE GAME." << endl;
+    }
+    if(isDead())
+    {
+        cout << endl << endl << "THE PLAYER HAS DIED. GAME OVER." << endl;
+    }
     if(win)
-        cout << endl << "CONGRADULATIONS! YOU HAVE WON THE GAME." << endl;
-    else
-        cout << "\nGAME OVER\n";
+    {
+        cout << endl << endl << "CONGRADULATIONS! YOU HAVE WON THE GAME." << endl;
+    }
 		
     return 0;
 }
@@ -129,11 +134,23 @@ void * gamePlay(void * lev)
     }
     win = false;
     gotoNextLevel = false;
+    
+    if(quit)
+    {
+        // Unlock critical section
+        if (pthread_mutex_unlock(&output_lock) != 0)
+        {
+            perror("Could not unlock output: ");
+            return NULL; //something horrible happened - exit whole program with error
+        }
 
+        return NULL;
+    }
+    
     printMap(level);
     findNextMonsterMove(level); 
 
-    cout << endl << "Enter next move: ";
+    cout << endl << "Please enter your next move: ";
     cin >> nextMove;
     nextMove = tolower(nextMove);
     
@@ -142,15 +159,18 @@ void * gamePlay(void * lev)
         int prow = Player1.row;
         int pcol = Player1.column;
         // Check if it is valid input
-        if(isValidInput(nextMove) && checkPosition(nextMove, level, prow, pcol))
-        {
-            // If the player reaches the '@' exit and go to the next level
-            if(gotoNextLevel)
-                break;
-            
-            // Pass move to movePlayer() function to update players position and map;
-            movePlayer(nextMove, level);
-            updateMap(level);
+        if(isValidInput(nextMove))
+        {            
+            // If the nextMove is possible, move the player there
+            if(checkPosition(nextMove, level, prow, pcol))
+            {
+                // If the player reaches the '@' exit and go to the next level
+                if(gotoNextLevel)
+                    break;
+                // Pass move to movePlayer() function to update players position and map;
+                movePlayer(nextMove, level);
+                updateMap(level);
+            }
             
             while(monsterCount < NUM_MONSTERS)
             {
@@ -168,15 +188,16 @@ void * gamePlay(void * lev)
             }
             monsterCount = 0;           
         }
+        
         updateMap(level);
         printMap(level);
         findNextMonsterMove(level); 
 
-        // If the player has reached the '*' we printed the level and will now exit
-        if(win)
+        // If the player has reached the '*' or is dead, exit
+        if(win || isDead())
             break;
 
-        cout << endl << "Enter next move: ";
+        cout << endl << "Please enter your next move: ";
         cin >> nextMove;
         nextMove = tolower(nextMove);
     }
@@ -189,6 +210,34 @@ void * gamePlay(void * lev)
     }
 
     return NULL;
+}
+
+bool isDead()
+{
+    int mrow, mcol;
+    bool result = false;
+    for(int i = 0; i < NUM_MONSTERS; i++)
+    {
+        mrow = monsters[i].row;
+        mcol = monsters[i].column;
+        // If the player is north of the monster
+        if((Player1.row == mrow + 1) && (Player1.column == mcol))
+            result = true;
+        // If the player is south of the monster
+        else if((Player1.row == mrow - 1) && (Player1.column == mcol))
+            result = true;
+        // If the player is east of the monster
+        else if((Player1.row == mrow) && (Player1.column == mcol + 1))
+            result = true;
+        // If the player is west of the monster
+        else if((Player1.row == mrow) && (Player1.column == mcol - 1))
+            result = true;
+    }
+    
+    if(result == true)
+        quit = true;
+
+    return result;
 }
 
 void moveMonsters(string level)
@@ -359,7 +408,7 @@ bool isValidInput(char input)
     else if(input == 'q')
     {
         quit = true;
-        return true;
+        return false;
     }
     else
     {
@@ -607,15 +656,15 @@ void printMap(string level)
                 Player1.row = row;
                 Player1.column = i;
             }
-            else if(buffer[i] == 'M')
+            if(buffer[i] == 'M')
             {
                 monsters[count].row = row;
                 monsters[count].column = i;
                 count++;
             }
-            else if (buffer[i] == '.')
+            if (buffer[i] == '.')
             {
-                buffer[i] == ' ';
+                buffer[i] = ' ';
             }
         }
         
