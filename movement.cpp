@@ -3,9 +3,9 @@
     This program illistrates certain programming skills learned in CS 330 such as system file calls and threading. The program 
     contains a relativly simple attacking game in which the user moves a player through different levels in order to reach the 
     end goal position. If a monster reaches the player first they lose the game.
-
+    
     movement.cpp: Contains global variables and function definitions for implementing the movement of the monster and player.
-
+    
     Programmer: Tori Sambrook
     Last Updated: April 11, 2020    
 */
@@ -183,6 +183,7 @@ char calculateDistance(int mrow, int mcolumn, int prow, int pcolumn)
 // Function movePlayer updates the map to hold the new position of the player
 void movePlayer(char nextMove, string level)
 {
+    cout << "MOVE PLAYER CALLED" << endl;
     int map, item, temp;
     char buffer[COLUMNS];
     int row = 0;

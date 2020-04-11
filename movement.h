@@ -3,10 +3,10 @@
     This program illistrates certain programming skills learned in CS 330 such as system file calls and threading. The program 
     contains a relativly simple attacking game in which the user moves a player through different levels in order to reach the 
     end goal position. If a monster reaches the player first they lose the game.
-
-    movement.cpp: Contains the header files, structure definitions, global and pre-defined variables, and function prototypes for
+    
+    movement.h: Contains the header files, structure definitions, global and pre-defined variables, and function prototypes for
     implementing the movement of the monster and player.
-
+    
     Programmer: Tori Sambrook
     Last Updated: April 11, 2020    
 */

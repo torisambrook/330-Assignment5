@@ -3,9 +3,9 @@
     This program illistrates certain programming skills learned in CS 330 such as system file calls and threading. The program 
     contains a relativly simple attacking game in which the user moves a player through different levels in order to reach the 
     end goal position. If a monster reaches the player first they lose the game.
-
+    
     level.cpp: Contains global variables and function definitions for implementing the level map of the game.
-
+    
     Programmer: Tori Sambrook
     Last Updated: April 11, 2020    
 */
@@ -19,6 +19,7 @@ bool quit = false;
 int monsterCount = 0;   // monCount keeps track of which monster threads are working on
 pthread_mutex_t output_lock;
 
+
 void * gamePlay(void * lev)
 {
     char nextMove;
@@ -30,6 +31,7 @@ void * gamePlay(void * lev)
         perror("Could not lock output: ");
         return NULL; //something horrible happened - exit whole program with error
     }
+    storeLevel(level);
 
     if(quit)
     {
@@ -102,6 +104,8 @@ void * gamePlay(void * lev)
 
     if(nextMove == 'q')
         quit = true;
+
+    resetLevel(level);
 
     // Unlock critical section
     if (pthread_mutex_unlock(&output_lock) != 0)
@@ -341,4 +345,87 @@ void printMap(string level)
     cout << "Monster next moves: \n" << monsters[0].nextMove << " " << monsters[1].nextMove << " " << monsters[2].nextMove << endl;
     */
     close (map);
+}
+
+void removeTemp()
+{
+    if(remove("tempLevel.txt") != 0)
+    {
+        perror("\nError removing tempLevel.txt: ");
+        exit(1);
+    }
+}
+
+void storeLevel(string level)
+{
+    int map, item, temp;
+    char buffer[COLUMNS];
+    
+    map = open(level.c_str(), O_RDONLY); 
+    if(map == -1)
+    {
+        perror("\nIn storeLevel map file open errror: ");
+        exit(1);
+    }
+
+    // If tempLevel.txt doesn't exist, create it
+    if(access("tempLevel.txt", F_OK) == -1)
+    {
+        temp = open("tempLevel.txt", O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+        if(temp == -1)
+        {
+            perror("\nIn storeLevel tempLevel file open errror: ");
+            exit(1);
+        }
+    }
+    // If it already exists, open it to write to
+    else
+    {
+        temp = open("tempLevel.txt", O_WRONLY);
+        if(temp == -1)
+        {
+            perror("\nIn storeLevel tempLevel file open errror: ");
+            exit(1);
+        }
+
+    }
+    
+    cout << "STORING LEVEL IN TEMPLEVEL\n";
+    while((item=read(map, buffer, COLUMNS))!=0)
+    {
+        //Store the original map in tempLevel.txt
+        item = write(temp, buffer, item);
+    }
+
+    close(map);
+    close(temp);
+}
+
+void resetLevel(string level)
+{
+    int map, item, temp;
+    char buffer[COLUMNS];
+    
+    map = open(level.c_str(), O_WRONLY); 
+    if(map == -1)
+    {
+        perror("\nIn resetLevel map file open errror: ");
+        exit(1);
+    }
+
+    temp = open("tempLevel.txt",  O_RDONLY);
+    if(temp == -1)
+    {
+        perror("\nIn resetLevel tempLevel file open errror: ");
+        exit(1);
+    }
+
+    cout << "STORING LEVEL IN LEVEL FROM TEMPLEVEL\n";
+    while((item=read(temp, buffer, COLUMNS))!=0)
+    {
+        //Store the original map in the level file
+        item = write(map, buffer, item);
+    }
+    close(map);
+    close(temp);
 }
