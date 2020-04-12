@@ -149,13 +149,13 @@ void moveMonsters(string level)
             }
             if(row == mrow)
             {
-                buffer[mcol] = '.';
+                buffer[mcol] = ' ';
             }
             break;
         case 's':
             if(row == mrow)
             {
-                buffer[mcol] = '.';  
+                buffer[mcol] = ' ';  
             }
             if (row == (mrow + 1))
             {
@@ -166,14 +166,14 @@ void moveMonsters(string level)
             if(row == mrow)
             {
                 buffer[mcol + 1] = 'M';
-                buffer[mcol] = '.';
+                buffer[mcol] = ' ';
             }
             break;
         case 'w':
             if(row == mrow)
             {
                 buffer[mcol - 1] = 'M';
-                buffer[mcol] = '.';
+                buffer[mcol] = ' ';
             }
             break;
         }        
