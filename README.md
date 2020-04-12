@@ -15,6 +15,10 @@ This project uses file system calls such as read() and write() to open level fil
 A program such as this would be more efficient if it used more object-oriented design techniques such as classes and 2D arrays instead of opening and closing files so often. However, the purpose of using so many file system calls was to demonstrate how these OS coding techniques could be implemented in uncommon ways. A limitation of this program is that it requires the user have the temp.txt file already existing in the same directory when running the program otherwise an error occurs. This limitation could be removed by creating some functionality that creates the file if it doesn't already exist, and deletes it when the program finishes (similar to the tempLevel.txt file). 
 
 #### Reproducing the project:
+*Although the code I have uploaded in gitHub is identical to the code I used to produce the project, I found that downloading the code from github may produce errors. If that is the case, I have created a video showing myself reporducing the project that you can view to see the outputs.*
+
+**Link to video reproducing project:** https://youtu.be/8GqZ3gCO530
+
 To reproduce the project, you need to have the following files in the directory of execution:
 - main.cpp
 - movement.cpp
