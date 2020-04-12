@@ -29,54 +29,65 @@ void * gamePlay(void * lev)
     if (pthread_mutex_lock(&output_lock) != 0)
     {
         perror("Could not lock output: ");
-        return NULL; //something horrible happened - exit whole program with error
+        return NULL;
     }
+
+    // Store the original level in tempLevel.txt
     storeLevel(level);
 
+    // If the user has indicated they want to quit, unlock the critical section and return
     if(quit)
     {
         // Unlock critical section
         if (pthread_mutex_unlock(&output_lock) != 0)
         {
             perror("Could not unlock output: ");
-            return NULL; //something horrible happened - exit whole program with error
+            return NULL;
         }
 
         return NULL;
     }
     
+    // Reset variables as user hasn't won and they are starting a new level
     win = false;
     gotoNextLevel = false;
     
+    // Print the starting map to the screen and find the next monster moves according to user current position
     printMap(level);
     findNextMonsterMove(level); 
 
+    // Prompt the user to enter move
     cout << endl << "Please enter your next move: ";
     cin >> nextMove;
     nextMove = tolower(nextMove);
     
+    // While the user doesn't want to quit
     while(nextMove != 'q')
     {
         int prow = Player1.row;
         int pcol = Player1.column;
-        // Check if it is valid input
+        
+        // If the user entered valid input
         if(isValidInput(nextMove))
         {            
             // If the nextMove is possible, move the player there
             if(checkPosition(nextMove, level, prow, pcol))
             {
-                // If the player reaches the '@' exit and go to the next level
+                // If the player reaches the '@' in the next move, exit and go to the next level
                 if(gotoNextLevel)
                     break;
-                // Pass move to movePlayer() function to update players position and map;
+
                 movePlayer(nextMove, level);
                 updateMap(level);
             }
             
+            //For each of the monsters in the level
             while(monsterCount < NUM_MONSTERS)
             {
                 int mrow = monsters[monsterCount].row;
                 int mcol = monsters[monsterCount].column;
+
+                //If the nextMove is possible for that monster
                 if(checkPosition(monsters[monsterCount].nextMove, level, mrow, mcol))
                 {
                     moveMonsters(level);
@@ -87,9 +98,11 @@ void * gamePlay(void * lev)
                     monsterCount++;
                 }
             }
+            // Reset the monsterCount for next move by the player
             monsterCount = 0;           
         }
 
+        // Print the level map to the screen and find the next monster moves according to user current position
         printMap(level);
         findNextMonsterMove(level); 
 
@@ -97,14 +110,17 @@ void * gamePlay(void * lev)
         if(win || isDead())
             break;
 
+        // Prompt the user for their next move
         cout << endl << "Please enter your next move: ";
         cin >> nextMove;
         nextMove = tolower(nextMove);
     }
 
+    // if the user enetered 'q' after first iteration
     if(nextMove == 'q')
         quit = true;
 
+    // Reset the contents of the level file back to the original map which is stored in tempLevel.txt
     resetLevel(level);
 
     // Unlock critical section
@@ -115,6 +131,85 @@ void * gamePlay(void * lev)
     }
 
     return NULL;
+}
+
+void printMap(string level)
+{
+    cout << endl;
+    int map, item;
+    char buffer[COLUMNS];
+    int count = 0;
+    int row = 0;
+    int size = COLUMNS;
+    
+    // Open the level file for reading
+    map = open(level.c_str(), O_RDONLY); 
+    if(map == -1)
+    {
+        perror("\nIn printMap map file open errror: ");
+        exit(1);
+    }
+
+    // Read the contents from the level file and write to the screen
+    while((item=read(map, buffer, size))!=0)
+    {
+        if(row == 0)
+            size++;
+        row++;
+
+        //Update player location, monster locations, and map format
+        for(int i = 0; i < COLUMNS; i++)
+        {
+            if(buffer[i] == 'P')
+            {
+                Player1.row = row;
+                Player1.column = i;
+            }
+            if(buffer[i] == 'M')
+            {
+                monsters[count].row = row;
+                monsters[count].column = i;
+                count++;
+            }
+            if (buffer[i] == '.')
+            {
+                buffer[i] = ' ';
+            }
+        }
+        
+        item = write(1, buffer, item);
+    }
+    close (map);
+}
+
+void updateMap(string level)
+{
+    int map, item, temp;
+    char buffer[COLUMNS];
+    
+    // Open the level file for writing
+    map = open(level.c_str(), O_WRONLY); 
+    if(map == -1)
+    {
+        perror("\nIn updateMap map file open errror: ");
+        exit(1);
+    }
+
+    // Open the temp file for reading
+    temp = open("temp.txt", O_RDONLY);
+    if(temp == -1)
+    {
+        perror("\nIn updateMap temp file open errror: ");
+        exit(1);
+    }
+
+    // Read the contents from the temp file and write to the level file
+    while((item=read(temp, buffer, COLUMNS))!=0)
+    {
+        item = write(map, buffer, item);
+    }
+    close(map);
+    close(temp);
 }
 
 bool isDead()
@@ -139,50 +234,11 @@ bool isDead()
             result = true;
     }
     
+    // If the player is dead, set quit to true for convenience
     if(result == true)
         quit = true;
 
     return result;
-}
-
-bool isValidInput(char input)
-{
-    if(input == 'n' || input == 's' || input == 'e' || input == 'w')
-    {
-        return true;
-    }
-    else if(input == 'q')
-    {
-        return false;
-    }
-    else
-    {
-        cout << "INVALID INPUT. Please enter N, S, E, or W." << endl;
-        return false;
-    }
-}
-
-bool isValidPosition(char item)
-{
-    if(item == '.' || item == '~')
-    {
-        return true;
-    }
-    else if (item == '@')
-    {
-        cout << "ABOUT TO BE NEXT LEVEL\n";
-        gotoNextLevel = true;
-        return true;
-    }
-    else if(item == '*')
-    {
-        win = true;
-        return true;
-    }
-    else
-    {
-        return false;
-    }  
 }
 
 bool checkPosition(char nextMove, string level, int testRow, int testCol)
@@ -192,20 +248,22 @@ bool checkPosition(char nextMove, string level, int testRow, int testCol)
     int row = 0;
     int size = COLUMNS;
     
+    // Open the level file for reading
     map = open(level.c_str(), O_RDONLY); 
     if(map == -1)
     {
-        perror("\nCHECK POSITION map file open errror: ");
+        perror("\nIn checkPosition map file open errror: ");
         exit(1);
     }
     
+    // Read the contents from the level file to check
     while((item=read(map, buffer, size))!=0)
     {
         if(row == 0)
             size++;
-        
         row++;
 
+        // Switch cases indicate what to do according to nextMove
         switch(nextMove)
         {
         case 'n':
@@ -262,97 +320,44 @@ bool checkPosition(char nextMove, string level, int testRow, int testCol)
     return false;
 }
 
-// Function updateMap uses file system calls to copy the map from the temp file to the level file
-void updateMap(string level)
+bool isValidPosition(char item)
 {
-    int map, item, temp;
-    char buffer[COLUMNS];
-    
-    map = open(level.c_str(), O_WRONLY); 
-    if(map == -1)
+    if(item == '.' || item == '~')
     {
-        perror("\nUPDATE MAP map file open errror: ");
-        exit(1);
+        return true;
     }
-
-    temp = open("temp.txt", O_RDONLY);
-    if(temp == -1)
+    // if the user is about to move to the next level
+    else if (item == '@')
     {
-        perror("\nUPDATE MAP temp file open errror: ");
-        exit(1);
+        gotoNextLevel = true;
+        return true;
     }
-
-    while((item=read(temp, buffer, COLUMNS))!=0)
+    // If the user has won
+    else if(item == '*')
     {
-        
-        // Update the map by copying the map from temp.txt to the level file
-        item = write(map, buffer, item);
+        win = true;
+        return true;
     }
-    close(map);
-    close(temp);
+    else
+    {
+        return false;
+    }  
 }
 
-// Function printMap opens the level file, and prints it to the screen.
-void printMap(string level)
+bool isValidInput(char input)
 {
-    cout << endl;
-    int map, item;
-    char buffer[COLUMNS];
-    int count = 0;
-    
-    map = open(level.c_str(), O_RDONLY); 
-    if(map == -1)
+    if(input == 'n' || input == 's' || input == 'e' || input == 'w')
     {
-        perror("\n PRINT MAP map file open errror: ");
-        exit(1);
+        return true;
     }
-    int row = 0;
-    int size = COLUMNS;
-    // For each row of characeters in the map, execute the read() system call
-    while((item=read(map, buffer, size))!=0)
+    else if(input == 'q')
     {
-        if(row == 0)
-            size++;
-        
-        row++;
-
-        //Update Player location, monster locations, and map format
-        for(int i = 0; i < COLUMNS; i++)
-        {
-            if(buffer[i] == 'P')
-            {
-                Player1.row = row;
-                Player1.column = i;
-            }
-            if(buffer[i] == 'M')
-            {
-                monsters[count].row = row;
-                monsters[count].column = i;
-                count++;
-            }
-            if (buffer[i] == '.')
-            {
-                buffer[i] = ' ';
-            }
-        }
-        
-        // Print the map to the screen using the write() system call
-        item = write(1, buffer, item);
+        return false;
     }
-    /*
-    cout << endl << "Number of rows: " << row << endl << "Player position: " << Player1.row <<  ", " << Player1.column << endl;
-    cout << "Monster positions: \n" << monsters[0].row << ", " << monsters[0].column << endl << monsters[1].row << ", " << monsters[1].column << endl <<monsters[2].row << ", " << monsters[2].column << endl;
-    cout << "Monster next moves: \n" << monsters[0].nextMove << " " << monsters[1].nextMove << " " << monsters[2].nextMove << endl;
-    */
-    close (map);
-}
-
-void removeTemp()
-{
-    if(remove("tempLevel.txt") != 0)
+    else
     {
-        perror("\nError removing tempLevel.txt: ");
-        exit(1);
+        cout << "INVALID INPUT. Please enter N, S, E, or W." << endl;
+        return false;
     }
 }
 
@@ -361,6 +366,7 @@ void storeLevel(string level)
     int map, item, temp;
     char buffer[COLUMNS];
     
+    // Open the level file for reading
     map = open(level.c_str(), O_RDONLY); 
     if(map == -1)
     {
@@ -368,7 +374,7 @@ void storeLevel(string level)
         exit(1);
     }
 
-    // If tempLevel.txt doesn't exist, create it
+    // If tempLevel.txt doesn't exist, create it and open it for writing
     if(access("tempLevel.txt", F_OK) == -1)
     {
         temp = open("tempLevel.txt", O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
@@ -378,7 +384,7 @@ void storeLevel(string level)
             exit(1);
         }
     }
-    // If it already exists, open it to write to
+    // If it already exists, open it for writing
     else
     {
         temp = open("tempLevel.txt", O_WRONLY);
@@ -390,10 +396,9 @@ void storeLevel(string level)
 
     }
     
-    cout << "STORING LEVEL IN TEMPLEVEL\n";
+    // Read from contents of the level file and write to tempLevel.txt
     while((item=read(map, buffer, COLUMNS))!=0)
     {
-        //Store the original map in tempLevel.txt
         item = write(temp, buffer, item);
     }
 
@@ -406,6 +411,7 @@ void resetLevel(string level)
     int map, item, temp;
     char buffer[COLUMNS];
     
+    // Open the level file for writing
     map = open(level.c_str(), O_WRONLY); 
     if(map == -1)
     {
@@ -413,6 +419,7 @@ void resetLevel(string level)
         exit(1);
     }
 
+    // Open the tempLevel file for reading
     temp = open("tempLevel.txt",  O_RDONLY);
     if(temp == -1)
     {
@@ -420,12 +427,20 @@ void resetLevel(string level)
         exit(1);
     }
 
-    cout << "STORING LEVEL IN LEVEL FROM TEMPLEVEL\n";
+    // Read the contents from tempLevel.txt and write to the level file
     while((item=read(temp, buffer, COLUMNS))!=0)
     {
-        //Store the original map in the level file
         item = write(map, buffer, item);
     }
     close(map);
     close(temp);
+}
+
+void removeTemp()
+{
+    if(remove("tempLevel.txt") != 0)
+    {
+        perror("\nError removing tempLevel.txt: ");
+        exit(1);
+    }
 }

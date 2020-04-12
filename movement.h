@@ -25,15 +25,18 @@
 #include <string>
 #include <pthread.h>
 #include <cmath>
+#include <stdio.h>
 
 using namespace std;
 
+// Player struct holds the current row and column of the player in the level
 struct Player
 {
     int row;
     int column;
 };
 
+// Monster struct holds the row, column, and nextMove of a monster in the level
 struct Monster 
 {
     int row;
@@ -41,19 +44,50 @@ struct Monster
     char nextMove;
 };
 
-extern const int COLUMNS;
-extern const int NUM_THREADS;
-extern const int NUM_MONSTERS;
+extern const int COLUMNS;       // Used for reading and writing to files
+extern const int NUM_THREADS;   // Holds the number of threads/levels in the program
+extern const int NUM_MONSTERS;  // Holds the number of monsters in each level
 
-extern Player Player1;
-extern Monster monsters[3];
+extern Player Player1;          // Shared variable for the player in the game
+extern Monster monsters[3];     // Shared variable containing the data for the monsters in the program
 
+/*
+    movePlayer
 
-
+    Purpose: To move the player to the position indicated by nextMove. It uses file system calls to read 
+             from the level file and write to the temp file.
+    Parameters: The nextMove and the level.
+    Return: None
+*/
 void movePlayer(char, string);
-void moveMonsters(string );
-char calculateDistance(int, int, int, int);
+
+/*
+    moveMonsters
+
+    Purpose: To move a monster from its current position to the next closest position to the player.
+             It uses file system calls to read from the level file and write to the temp file.
+    Parameters: The level file.
+    Return: None
+*/
+void moveMonsters(string);
+
+/*
+    findNextMonsterMove
+
+    Purpose: To find the next closest position for a monster and store the position in monsters[i].nextmove. 
+    Parameters: The level file.
+    Return: None
+*/
 void findNextMonsterMove(string);
 
+/*
+    calculateDistance
+
+    Purpose: It calculates the distance between the player and the possible moves the monster could make and 
+             then determines which move has the shortest distance. 
+    Parameters: The player's row, player's column, monster's row, monster's column.
+    Return: The nextMove that the monster should make which moves it closer to the player.
+*/
+char calculateDistance(int, int, int, int);
 
 #endif

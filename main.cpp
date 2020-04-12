@@ -16,7 +16,10 @@
 
 int main()
 {
+    // Initialize level files
     string levelsList[2] = {"level1.txt", "level2.txt"}; 
+
+    // Initialize threads
     pthread_t *thread_ids = new pthread_t[NUM_THREADS];
 
     //Use unbuffered output on stdout
@@ -28,6 +31,7 @@ int main()
         perror("Could not create mutex for output: ");
         return 1;
     } 
+
     cout << "\nWELCOME TO THE GAME! HERE ARE THE RULES:" << endl;
     cout << "The goal of the game is to move the player 'P' and win by reaching the '*' in the last level. \n" << 
 	        "If a monster 'M' reaches you first the game is over. Advance through the levels by making it \n" << 
@@ -53,8 +57,11 @@ int main()
             return 3;
         }
     }
+
+    // Delete the tempLevel file which stored original maps
     removeTemp();
 
+    // Print final result to the screen
     if(isDead())
     {
         cout << endl << "THE PLAYER HAS DIED." << endl;

@@ -20,6 +20,86 @@ Player Player1;
 Monster monsters[NUM_MONSTERS];
 
 
+void movePlayer(char nextMove, string level)
+{
+    int map, item, temp;
+    char buffer[COLUMNS];
+    int row = 0;
+    int size = COLUMNS;
+    
+    // Open level file for reading
+    map = open(level.c_str(), O_RDONLY); 
+    if(map == -1)
+    {
+        perror("\nIn movePlayer map file open errror: ");
+        exit(1);
+    }
+
+    // Open temp file for writing
+    temp = open("temp.txt", O_WRONLY);
+    if(temp == -1)
+    {
+        perror("\nIn movePlayer temp file open errror: ");
+        exit(1);
+    }
+    
+    // Read the content from the level file and write to the temp file
+    while((item=read(map, buffer, size))!=0)
+    {
+        if(row == 0)
+            size++;
+        row++;
+        
+        // Change the position of the player according to nextMove
+        switch (nextMove)
+        {
+        case 'n': 
+            // if the Player is in the next row, write a 'P' in the current row 
+            if(row == (Player1.row - 1))
+            {                
+                buffer[Player1.column] = 'P';
+            }
+            // if the current row has the 'P', replace it with a ' '
+            if (row == Player1.row)
+            {
+                buffer[Player1.column] = '.';
+            }
+            break;
+        case 's': 
+            // if the current row has the 'P', replace it with a ' ' 
+            if(row == Player1.row)
+            {
+                buffer[Player1.column] = '.';
+            }
+            // if the current row is after the row with the Player, write a 'P' in the current row
+            if (row == (Player1.row + 1))
+            {
+                buffer[Player1.column] = 'P';                
+            }
+            break;
+        case 'e':
+            // Move the player 1 space to the right
+            if(row == Player1.row)
+            {
+                buffer[Player1.column] = '.';
+                buffer[Player1.column + 1] = 'P';
+            }
+            break;
+        case 'w':
+            // Move the player 1 space to the left
+            if(row == Player1.row)
+            {
+                buffer[Player1.column] = '.';
+                buffer[Player1.column - 1] = 'P';
+            }
+            break;
+        }
+        item = write(temp, buffer, item);
+    }
+    close(map);
+    close(temp);
+}
+
 void moveMonsters(string level)
 {    
     int map2, item2, temp2, mrow, mcol;
@@ -29,32 +109,37 @@ void moveMonsters(string level)
     mrow = monsters[monsterCount].row;
     mcol = monsters[monsterCount].column;
 
+    // If the nextMove for the monster is invalid, return and deal with the next monster
     if(!checkPosition(monsters[monsterCount].nextMove, level, mrow, mcol))
     {
         monsterCount++;
         return;
     }
     
+    // Open the level file for reading
     map2 = open(level.c_str(), O_RDONLY); 
     if(map2 == -1)
     {
-        perror("\nMove Monsters map file open errror: ");
+        perror("\nIn moveMonsters map file open errror: ");
         return;
     }
 
+    // Open the temp file for writing
     temp2 = open("temp.txt", O_WRONLY);
     if(temp2 == -1)
     {
-        perror("\nMove Monsters temp file open errror: ");
+        perror("\nIn moveMonsters temp file open errror: ");
         return;
     }
     
+    // Read from the level file and write to the temp file
     while((item2=read(map2, buffer, size))!=0)
     {
         if(row == 0)
             size++;
         row++;
         
+        // Change the position of the monster according to their nextMove
         switch(monsters[monsterCount].nextMove)
         {
         case 'n':
@@ -98,9 +183,8 @@ void moveMonsters(string level)
     close(map2);
     close(temp2);
 
-    // Increase monster count for next thread
+    // Increase monsterCount for next monster
     monsterCount++;
-    updateMap(level);
    
     return;
 }
@@ -114,19 +198,22 @@ void findNextMonsterMove(string level)
     char move;
     int count = 0;
     
+    // Open the level file for reading
     map = open(level.c_str(), O_RDONLY); 
     if(map == -1)
     {
-        perror("\nFind next monster move map file open errror: ");
+        perror("\nIn findNextMonsterMove map file open errror: ");
         exit(1);
     }
     
+    // Read from the level file to find nextMove
     while((item=read(map, buffer, size))!=0)
     {
         if(row == 0)
             size++;
         row++;
 
+        // For each monster, call calculateDistance to find move with shortest distance to player
         for(int i = 0; i < COLUMNS; i++)
         {
             if(buffer[i] == 'M')
@@ -178,83 +265,4 @@ char calculateDistance(int mrow, int mcolumn, int prow, int pcolumn)
         return 'e';
     else
         return 'w';
-}
-
-// Function movePlayer updates the map to hold the new position of the player
-void movePlayer(char nextMove, string level)
-{
-    cout << "MOVE PLAYER CALLED" << endl;
-    int map, item, temp;
-    char buffer[COLUMNS];
-    int row = 0;
-    int size = COLUMNS;
-    
-    map = open(level.c_str(), O_RDONLY); 
-    if(map == -1)
-    {
-        perror("\nMOVE PLAYER map file open errror: ");
-        exit(1);
-    }
-
-    temp = open("temp.txt", O_WRONLY);
-    if(temp == -1)
-    {
-        perror("\nMOVE PLAYER temp file open errror: ");
-        exit(1);
-    }
-    
-    while((item=read(map, buffer, size))!=0)
-    {
-        if(row == 0)
-            size++;
-        
-        row++;
-        
-        switch (nextMove)
-        {
-        case 'n': 
-            // if the Player is in the next row, write a 'P' in the current row 
-            if(row == (Player1.row - 1))
-            {                
-                buffer[Player1.column] = 'P';
-            }
-            // if the current row has the 'P', replace it with a ' '
-            if (row == Player1.row)
-            {
-                buffer[Player1.column] = '.';
-            }
-            break;
-        case 's': 
-            // if the current row has the 'P', replace it with a ' ' 
-            if(row == Player1.row)
-            {
-                buffer[Player1.column] = '.';
-            }
-            // if the current row is after the row with the Player, write a 'P' in the current row
-            if (row == (Player1.row + 1))
-            {
-                buffer[Player1.column] = 'P';                
-            }
-            break;
-        case 'e':
-            // Move the player 1 space to the right
-            if(row == Player1.row)
-            {
-                buffer[Player1.column] = '.';
-                buffer[Player1.column + 1] = 'P';
-            }
-            break;
-        case 'w':
-            // Move the player 1 space to the left
-            if(row == Player1.row)
-            {
-                buffer[Player1.column] = '.';
-                buffer[Player1.column - 1] = 'P';
-            }
-            break;
-        }
-        item = write(temp, buffer, item);
-    }
-    close(map);
-    close(temp);
 }
