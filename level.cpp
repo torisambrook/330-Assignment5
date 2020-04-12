@@ -157,7 +157,7 @@ void printMap(string level)
             size++;
         row++;
 
-        //Update player location, monster locations, and map format
+        //Update player and monster locations
         for(int i = 0; i < COLUMNS; i++)
         {
             if(buffer[i] == 'P')
@@ -170,10 +170,6 @@ void printMap(string level)
                 monsters[count].row = row;
                 monsters[count].column = i;
                 count++;
-            }
-            if (buffer[i] == '.')
-            {
-                buffer[i] = ' ';
             }
         }
         
@@ -322,7 +318,7 @@ bool checkPosition(char nextMove, string level, int testRow, int testCol)
 
 bool isValidPosition(char item)
 {
-    if(item == '.' || item == '~')
+    if(item == '.' || item == '~' || item == ' ')
     {
         return true;
     }
